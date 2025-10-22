@@ -94,21 +94,3 @@ To manually clear all stored journal entries during development:
 3. Remove keys beginning with `journal_` (e.g., `journal_store_v1`)
 
 ---
-
-## Roadmap: Extending to Cloud Persistence
-
-The current structure is designed to facilitate a future upgrade to a cloud-based database (e.g., Firebase Firestore) with minimal UI changes.
-
-1) **Isolate Data Logic**  
-   Extract the current `useLocalJournals` custom hook into a dedicated file (e.g., `src/data/LocalProvider.jsx`).
-
-2) **Implement Cloud Provider**  
-   Create a parallel module (e.g., `src/data/FirebaseProvider.jsx`) that implements the **same API signature**:
-   - `addJournal(title, content)`
-   - `updateJournal(id, title, content)`
-   - `deleteJournal(id)`
-   - `login()` (if needed)
-   - `journals`, `loadingJournals`, etc.
-
-3) **Swap Implementation**  
-   In `App.jsx`, replace the import of the local provider with the cloud provider to move from local storage to a real backend without modifying UI components.
