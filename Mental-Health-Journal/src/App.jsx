@@ -44,6 +44,13 @@ const TrashIcon = (props) => (
   </svg>
 );
 
+// Authication / database
+
+const supabase = createClient(
+  import.meta.env.REACT_APP_SUPABASE_URL,
+  import.meta.env.REACT_APP_ANON_KEY,
+)
+
 // Helpers
 const formatDate = (ts) => {
   try {
