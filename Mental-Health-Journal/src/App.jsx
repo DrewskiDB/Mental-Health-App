@@ -154,8 +154,8 @@ const useLocalJournals = () => {
 };
 
 // --- Screens ---
-const LoginPage = ({ login, setIsLoggedIn, bgColor, textColor, isDark, goToRegister }) => {
-  const [username, setUsername] = useState('');
+const LoginPage = ({ setIsLoggedIn, bgColor, textColor, isDark, goToRegister }) => {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -166,19 +166,18 @@ const LoginPage = ({ login, setIsLoggedIn, bgColor, textColor, isDark, goToRegis
     setError(null);
 
     // simple front-end validation
-    if (!username.trim() || !password.trim()) {
-      setError('Please enter both a username and password.');
+    if (!email.trim() || !password.trim())  {
+      setError('Please enter both email and password.');      
       return;
     }
-
-    setIsLoading(true);
-    const ok = await login(); // stubbed login from your local store
-    if (ok) {
-      setIsLoggedIn(true);
-    } else {
-      setError('Login failed. Please try again.');
+    try {
+      setIsLoading(true);
+      await signIn(email.trim(), password.trim());
+      setIsLoggedIn(true); // only after a real sign-in succeeds
+    } catch (err) {
+      setError(err.message || 'Login failed. Please try again.');
       setIsLoading(false);
-    }
+   }
   };
 
   return (
@@ -195,17 +194,17 @@ const LoginPage = ({ login, setIsLoggedIn, bgColor, textColor, isDark, goToRegis
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="username" className={`block text-sm font-medium mb-1 ${textColor}`}>Username</label>
+            <label htmlFor="email" className={`block text-sm font-medium mb-1 ${textColor}`}>Email</label>
             <input
-              id="username"
-              name="username"
-              type="text"
-              autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition ${isDark ? 'bg-gray-700 placeholder-gray-400 border-gray-600 text-gray-100' : 'bg-gray-100 placeholder-gray-500 border-gray-300 text-gray-900'}`}
-              placeholder="e.g. johndoe"
-              aria-invalid={!!error && !username.trim()}
+              placeholder="you@example.com"
+              aria-invalid={!!error && !email.trim()}
             />
           </div>
 
@@ -271,6 +270,7 @@ const RegisterPage = ({ setIsLoggedIn, bgColor, textColor, isDark, goToLogin }) 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [sent, setSent] = useState(false); // NEW
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -287,15 +287,38 @@ const RegisterPage = ({ setIsLoggedIn, bgColor, textColor, isDark, goToLogin }) 
 
     try {
       setIsLoading(true);
-      const { user } = await signUp(email.trim(), password.trim());
-      // If your Supabase project requires email confirmation, user may be null until confirmed.
-      // For class/demo, we’ll treat successful sign-up as authenticated if no error is thrown:
-      setIsLoggedIn(true);
+      const { data, error } = await signUp(email.trim(), password.trim());
+      if (error) throw error;
+      setSent(true); 
     } catch (err) {
       setError(err.message || 'Sign up failed. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
+
+  if (sent) {
+    return (
+      <div className={`flex flex-col items-center justify-center h-full p-8 ${bgColor} transition-colors duration-300`}>
+        <div className="w-full text-center">
+          <div className={`mx-auto w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-indigo-600/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>
+            <BookOpenIcon className="w-7 h-7" />
+          </div>
+          <h1 className={`mt-3 text-2xl font-extrabold ${textColor}`}>Check your email</h1>
+          <p className={`mt-2 text-sm ${textColor} opacity-80`}>
+            We sent a verification link to <span className="font-semibold">{email}</span>.<br/>
+            Click the link to activate your account, then log in.
+          </p>
+          <button
+            onClick={goToLogin}
+            className="mt-6 w-full py-3 px-6 bg-indigo-600 text-white font-semibold rounded-full shadow-lg hover:bg-indigo-700 transition"
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex flex-col items-center justify-center h-full p-8 ${bgColor} transition-colors duration-300`}>
@@ -547,7 +570,6 @@ export default function App() {
         <div className={`relative w-full max-w-sm h-[800px] border-8 rounded-[48px] overflow-hidden shadow-2xl transition-colors duration-300 ${isDark ? 'border-gray-800 bg-black' : 'border-gray-300 bg-white'}`}>
           {authPage === 'login' ? (
             <LoginPage
-            login={login}
               setIsLoggedIn={setIsLoggedIn}
               bgColor={bgColor}
               textColor={textColor}
