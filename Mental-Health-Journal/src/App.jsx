@@ -47,11 +47,11 @@ const TrashIcon = (props) => (
 // Authication / database
 
 const supabase = createClient(
-  import.meta.env.REACT_APP_SUPABASE_URL,
-  import.meta.env.REACT_APP_ANON_KEY,
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
 )
 
-// Auth helpers (email/password)
+// Auth helpers (email)
 const signIn = async(email,password) =>  {
   const {data, error} = await supabase.auth.signInWithPassword({email,password});
   if(error) throw error;
@@ -62,7 +62,8 @@ const signUp = async (email, password) => {
   const {data, error} = await supabase.auth.signUp({email,password});
   if (error) throw error;
   return data;
-}
+};
+
 // Helpers
 const formatDate = (ts) => {
   try {
@@ -153,7 +154,7 @@ const useLocalJournals = () => {
 };
 
 // --- Screens ---
-const LoginPage = ({ login, setIsLoggedIn, bgColor, textColor, isDark }) => {
+const LoginPage = ({ login, setIsLoggedIn, bgColor, textColor, isDark, goToRegister }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -254,9 +255,10 @@ const LoginPage = ({ login, setIsLoggedIn, bgColor, textColor, isDark }) => {
           </button>
         </form>
 
-        <p className={`text-xs mt-6 text-center ${textColor} opacity-60`}>
-          Your entries are currently saved <span className="font-semibold">locally</span> in this browser.
-        </p>
+           <p className={`text-xs mt-6 text-center ${textColor} opacity-60`}>
+          Don't have an account?{' '}
+          <button onClick={goToRegister} className="text-indigo-400 hover:text-indigo-300 font-semibold">Create one</button>
+        </p>    
       </div>
     </div>
   );
