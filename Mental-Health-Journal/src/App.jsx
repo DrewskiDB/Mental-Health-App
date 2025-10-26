@@ -264,6 +264,113 @@ const LoginPage = ({ login, setIsLoggedIn, bgColor, textColor, isDark, goToRegis
   );
 };
 
+const RegisterPage = ({ setIsLoggedIn, bgColor, textColor, isDark, goToLogin }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!email.trim() || !password.trim() || !confirm.trim()) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    if (password !== confirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const { user } = await signUp(email.trim(), password.trim());
+      // If your Supabase project requires email confirmation, user may be null until confirmed.
+      // For class/demo, we’ll treat successful sign-up as authenticated if no error is thrown:
+      setIsLoggedIn(true);
+    } catch (err) {
+      setError(err.message || 'Sign up failed. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className={`flex flex-col items-center justify-center h-full p-8 ${bgColor} transition-colors duration-300`}>
+      <div className="w-full">
+        <div className="text-center mb-6">
+          <div className={`mx-auto w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-indigo-600/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>
+            <BookOpenIcon className="w-7 h-7" />
+          </div>
+          <h1 className={`mt-3 text-2xl font-extrabold ${textColor}`}>Create Account</h1>
+          <p className={`text-sm opacity-70 ${textColor}`}>Start journaling securely</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="reg-email" className={`block text-sm font-medium mb-1 ${textColor}`}>Email</label>
+            <input
+              id="reg-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition ${isDark ? 'bg-gray-700 placeholder-gray-400 border-gray-600 text-gray-100' : 'bg-gray-100 placeholder-gray-500 border-gray-300 text-gray-900'}`}
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <label htmlFor="reg-password" className={`block text-sm font-medium mb-1 ${textColor}`}>Password</label>
+              <button type="button" onClick={() => setShowPassword(s => !s)} className="text-xs font-semibold text-indigo-500 hover:text-indigo-400">
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            <input
+              id="reg-password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition ${isDark ? 'bg-gray-700 placeholder-gray-400 border-gray-600 text-gray-100' : 'bg-gray-100 placeholder-gray-500 border-gray-300 text-gray-900'}`}
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="reg-confirm" className={`block text-sm font-medium mb-1 ${textColor}`}>Confirm Password</label>
+            <input
+              id="reg-confirm"
+              type={showPassword ? 'text' : 'password'}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition ${isDark ? 'bg-gray-700 placeholder-gray-400 border-gray-600 text-gray-100' : 'bg-gray-100 placeholder-gray-500 border-gray-300 text-gray-900'}`}
+              placeholder="••••••••"
+            />
+          </div>
+
+          {error && <div className="p-3 rounded-lg text-sm font-medium bg-red-600/90 text-white">{error}</div>}
+
+          <button
+            type="submit"
+            className="w-full py-3 px-6 bg-indigo-600 text-white font-semibold rounded-full shadow-lg hover:bg-indigo-700 transition disabled:opacity-50 flex items-center justify-center"
+            disabled={isLoading}
+          >
+            {isLoading ? (<><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>Creating…</>) : 'Create Account'}
+          </button>
+        </form>
+
+        <p className={`text-xs mt-6 text-center ${textColor} opacity-60`}>
+          Already have an account?{' '}
+          <button onClick={goToLogin} className="text-indigo-400 hover:text-indigo-300 font-semibold">Log in</button>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+
 
 const ViewJournalPage = ({ journal, setPage, textColor, cardColor, deleteJournal }) => {
   if (!journal) return <div className="p-4"><p className={`${textColor}`}>Error: No entry selected.</p></div>;
@@ -421,6 +528,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentPage, setCurrentPage] = useState('Home');
   const [selectedJournal, setSelectedJournal] = useState(null);
+  const [authPage, setAuthPage] = useState('login');
 
   if (!isReady) {
     return (
@@ -437,7 +545,24 @@ export default function App() {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 ${isDark ? 'bg-gray-950' : 'bg-gray-100'}`}>
         <div className={`relative w-full max-w-sm h-[800px] border-8 rounded-[48px] overflow-hidden shadow-2xl transition-colors duration-300 ${isDark ? 'border-gray-800 bg-black' : 'border-gray-300 bg-white'}`}>
-          <LoginPage login={login} setIsLoggedIn={setIsLoggedIn} bgColor={bgColor} textColor={textColor} isDark={isDark} />
+          {authPage === 'login' ? (
+            <LoginPage
+            login={login}
+              setIsLoggedIn={setIsLoggedIn}
+              bgColor={bgColor}
+              textColor={textColor}
+              isDark={isDark}
+              goToRegister={() => setAuthPage('register')}
+            />
+          ) : (
+            <RegisterPage
+              setIsLoggedIn={setIsLoggedIn}
+              bgColor={bgColor}
+              textColor={textColor}
+              isDark={isDark}
+              goToLogin={() => setAuthPage('login')}
+            />
+          )}
         </div>
       </div>
     );
