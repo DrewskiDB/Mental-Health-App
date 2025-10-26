@@ -51,6 +51,18 @@ const supabase = createClient(
   import.meta.env.REACT_APP_ANON_KEY,
 )
 
+// Auth helpers (email/password)
+const signIn = async(email,password) =>  {
+  const {data, error} = await supabase.auth.signInWithPassword({email,password});
+  if(error) throw error;
+  return data;
+};
+
+const signUp = async (email, password) => {
+  const {data, error} = await supabase.auth.signUp({email,password});
+  if (error) throw error;
+  return data;
+}
 // Helpers
 const formatDate = (ts) => {
   try {
