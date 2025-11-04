@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {createClient} from '@supabase/supabase-js'
 
+
+
 // --- Icons (inline SVG) ---
 const HomeIcon = (props) => (
   <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -46,7 +48,7 @@ const TrashIcon = (props) => (
 
 // Authication / database
 
-const supabase = createClient(
+ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY,
 )
@@ -90,67 +92,160 @@ const useTheme = () => {
   return { theme, isDark, toggleTheme, bgColor, textColor, cardColor, navColor, inputColor };
 };
 
-// --- Local Store (no backend) ---
-const KEY = 'journal_store_v1';
-const loadJournals = () => {
-  try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
-};
-const saveJournals = (arr) => {
-  localStorage.setItem(KEY, JSON.stringify(arr));
-};
-
-const useLocalJournals = () => {
-  const [journals, setJournals] = useState([]);
-  const [loadingJournals, setLoading] = useState(true);
-  const [isReady, setReady] = useState(true);
-  const [userId, setUserId] = useState(() => {
-    const k = 'journal_user_id';
-    let u = localStorage.getItem(k);
-    if (!u) { u = (crypto?.randomUUID?.() || String(Math.random())).slice(0, 12); localStorage.setItem(k, u); }
-    return u;
-  });
+// --- 3. Hook to manage user authentication state ---
+const useSupabaseUser = () => {
+  const [user, setUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
 
   useEffect(() => {
-    const data = loadJournals();
-    data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-    setJournals(data);
-    setLoading(false);
+    // Fetch user on mount
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (!error) setUser(data?.user || null);
+      setLoadingUser(false);
+    });
 
-    const onStorage = (e) => {
-      if (e.key === KEY) {
-        const d = loadJournals();
-        d.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setJournals(d);
-      }
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    // Subscribe to auth changes
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.subscription.unsubscribe();
   }, []);
 
-  const login = useCallback(async () => true, []);
+  return { user, loadingUser };
+};
 
-  const addJournal = useCallback(async (title, content) => {
-    const now = new Date().toISOString();
-    const id = (crypto?.randomUUID?.() || Math.random().toString(36).slice(2));
-    const next = [{ id, title, content, createdAt: now }, ...journals];
-    setJournals(next); saveJournals(next);
-    return true;
-  }, [journals]);
+// --- Journals Hook ---
+export const useSupabaseJournals = () => {
+  const [journals, setJournals] = useState([]);
+  const [loadingJournals, setLoading] = useState(true);
+  const [isReady, setReady] = useState(false);
+  const [user, setUser] = useState(null);
 
-  const updateJournal = useCallback(async (id, title, content) => {
-    const now = new Date().toISOString();
-    const next = journals.map(j => j.id === id ? { ...j, title, content, updatedAt: now } : j);
-    setJournals(next); saveJournals(next);
-    return true;
-  }, [journals]);
+  // --- Detect existing session (after your login runs) ---
+  useEffect(() => {
+    const init = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.user) setUser(data.session.user);
+      setReady(true);
+    };
+    init();
 
-  const deleteJournal = useCallback(async (id) => {
-    const next = journals.filter(j => j.id != id);
-    setJournals(next); saveJournals(next);
-    return true;
-  }, [journals]);
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
 
-  return { isReady, userId, journals, loadingJournals, addJournal, updateJournal, deleteJournal, login };
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // --- Load user’s journals from Supabase ---
+  const loadJournals = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data, error } = await supabase
+        .from('dbJournals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('time_stamp', { ascending: false });
+    if (error) console.error('Error loading journals:', error);
+    else setJournals(data || []);
+    setLoading(false);
+  }, [user]);
+
+  // Automatically load when logged in
+  useEffect(() => {
+    if (user) loadJournals();
+  }, [user, loadJournals]);
+
+  // --- Add a new journal entry ---
+  const addJournal = useCallback(
+      async (title, body) => {
+        if (!user) return false;
+        const now = new Date().toISOString();
+        const { error } = await supabase.from('dbJournals').insert({
+          user_id: user.id,
+          title,
+          body,
+          time_stamp: now,
+        });
+        if (error) {
+          console.error('Error adding journal:', error);
+          return false;
+        }
+        await loadJournals();
+        return true;
+      },
+      [user, loadJournals]
+  );
+
+  // --- Update an existing journal ---
+  const updateJournal = useCallback(
+      async (id, title, body) => {
+        if (!user) return false;
+        const now = new Date().toISOString();
+        const { error } = await supabase
+            .from('dbJournals')
+            .update({ title, body, time_stamp: now })
+            .eq('id', id)
+            .eq('user_id', user.id);
+        if (error) {
+          console.error('Error updating journal:', error);
+          return false;
+        }
+        await loadJournals();
+        return true;
+      },
+      [user, loadJournals]
+  );
+
+  // --- Delete a journal ---
+  const deleteJournal = useCallback(
+      async (id) => {
+        if (!user) return false;
+        const { error } = await supabase
+            .from('dbJournals')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id);
+        if (error) {
+          console.error('Error deleting journal:', error);
+          return false;
+        }
+        await loadJournals();
+        return true;
+      },
+      [user, loadJournals]
+  );
+
+  // --- Realtime sync for updates from other clients ---
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+        .channel('journals_changes')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'journals', filter: `user_id=eq.${user.id}` },
+            () => loadJournals()
+        )
+        .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, loadJournals]);
+
+  return {
+    isReady,
+    user,
+    journals,
+    loadingJournals,
+    addJournal,
+    updateJournal,
+    deleteJournal,
+    refresh: loadJournals,
+  };
 };
 
 // --- Screens ---
@@ -546,7 +641,7 @@ const NavBar = ({ currentPage, setPage, navColor }) => {
 };
 
 export default function App() {
-  const { isReady, userId, journals, loadingJournals, addJournal, updateJournal, deleteJournal, login } = useLocalJournals();
+  const { isReady, userId, journals, loadingJournals, addJournal, updateJournal, deleteJournal, login } = useSupabaseJournals();
   const { isDark, toggleTheme, bgColor, textColor, cardColor, navColor, inputColor } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentPage, setCurrentPage] = useState('Home');
