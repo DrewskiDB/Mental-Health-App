@@ -73,7 +73,7 @@ const formatDate = (ts) => {
     if (isNaN(date.getTime())) return 'Invalid Date';
     return date.toLocaleDateString('en-US', {
       year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit'
+      hour: '2-digit', minute: '2-digit', timeZone: 'America/Chicago'
     });
   } catch { return 'Invalid Date'; }
 };
@@ -146,7 +146,7 @@ export const useSupabaseJournals = () => {
     setLoading(true);
     const { data, error } = await supabase
         .from('dbJournals')
-        .select('*')
+        .select('user_id, title, body, time_stamp')
         .eq('user_id', user.id)
         .order('time_stamp', { ascending: false });
     if (error) console.error('Error loading journals:', error);
@@ -163,7 +163,7 @@ export const useSupabaseJournals = () => {
   const addJournal = useCallback(
       async (title, body) => {
         if (!user) return false;
-        const now = new Date().toISOString();
+        const now = new Date().toLocaleString('en-US', {timeZone: "America/Chicago"});
         const { error } = await supabase.from('dbJournals').insert({
           user_id: user.id,
           title,
@@ -226,7 +226,7 @@ export const useSupabaseJournals = () => {
         .channel('journals_changes')
         .on(
             'postgres_changes',
-            { event: '*', schema: 'public', table: 'journals', filter: `user_id=eq.${user.id}` },
+            { event: '*', schema: 'public', table: 'dbjournals', filter: `user_id=eq.${user.id}` },
             () => loadJournals()
         )
         .subscribe();
@@ -524,16 +524,17 @@ const ViewJournalPage = ({ journal, setPage, textColor, cardColor, deleteJournal
       </div>
       <h1 className={`text-3xl font-bold mb-2 ${textColor}`}>{journal.title || 'Untitled Entry'}</h1>
       <p className={`text-sm text-gray-400 mb-6`}>
-        Created: {formatDate(journal.createdAt)}{journal.updatedAt && (<span className="ml-3 italic">(Updated: {formatDate(journal.updatedAt)})</span>)}
+        Created: {formatDate(journal.time_stamp)}{journal.updatedAt && (<span className="ml-3 italic">(Updated: {formatDate(journal.updatedAt)})</span>)}
       </p>
       <div className={`${cardColor} p-4 rounded-xl shadow-inner min-h-[60%] mb-40`}>
-        <p className={`text-base ${textColor} opacity-90 whitespace-pre-wrap`}>{journal.content}</p>
+        <p className={`text-base ${textColor} opacity-90 whitespace-pre-wrap`}>{journal.body}</p>
       </div>
     </div>
   );
 };
 
 const JournalFormPage = ({ journalToEdit, addJournal, updateJournal, textColor, inputColor, setPage }) => {
+
   const isEditMode = !!journalToEdit;
   const [title, setTitle] = useState(isEditMode ? (journalToEdit.title || '') : '');
   const [content, setContent] = useState(isEditMode ? (journalToEdit.content || '') : '');
@@ -587,7 +588,7 @@ const HomePage = ({ journals, loadingJournals, cardColor, textColor, setSelected
           <div key={journal.id} className={`${cardColor} p-4 rounded-xl shadow-lg transition duration-200 hover:shadow-2xl cursor-pointer`}
             onClick={() => { setSelectedJournal(journal); setPage('View'); }}>
             <h2 className={`text-xl font-semibold mb-1 ${textColor}`}>{journal.title || 'Untitled Entry'}</h2>
-            <p className={`text-sm text-gray-400 mb-2`}>{formatDate(journal.createdAt)}</p>
+            <p className={`text-sm text-gray-400 mb-2`}>{formatDate(journal.time_stamp)}</p>
             <p className={`text-base ${textColor} line-clamp-3 opacity-90`}>{journal.content}</p>
           </div>
         ))}
