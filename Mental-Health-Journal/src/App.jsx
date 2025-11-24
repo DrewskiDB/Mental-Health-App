@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import {createClient} from '@supabase/supabase-js'
+
 
 // --- Icons (inline SVG) ---
 const HomeIcon = (props) => (
@@ -43,6 +45,29 @@ const TrashIcon = (props) => (
   </svg>
 );
 
+<<<<<<< Mental-Health-Journal/src/App.jsx
+// Authication / database
+
+ const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+)
+
+// Auth helpers (email)
+const signIn = async(email,password) =>  {
+  const {data, error} = await supabase.auth.signInWithPassword({email,password});
+  if(error) throw error;
+  return data;
+};
+
+const signUp = async (email, password) => {
+  const {data, error} = await supabase.auth.signUp({email,password});
+  if (error) throw error;
+  return data;
+};
+
+=======
+>>>>>>> Mental-Health-Journal/src/App.jsx
 // Helpers
 const formatDate = (ts) => {
   try {
@@ -50,7 +75,11 @@ const formatDate = (ts) => {
     if (isNaN(date.getTime())) return 'Invalid Date';
     return date.toLocaleDateString('en-US', {
       year: 'numeric', month: 'short', day: 'numeric',
+<<<<<<< Mental-Health-Journal/src/App.jsx
+      hour: '2-digit', minute: '2-digit', timeZone: 'America/Chicago'
+=======
       hour: '2-digit', minute: '2-digit'
+>>>>>>> Mental-Health-Journal/src/App.jsx
     });
   } catch { return 'Invalid Date'; }
 };
@@ -69,6 +98,270 @@ const useTheme = () => {
   return { theme, isDark, toggleTheme, bgColor, textColor, cardColor, navColor, inputColor };
 };
 
+<<<<<<< Mental-Health-Journal/src/App.jsx
+// --- 3. Hook to manage user authentication state ---
+const useSupabaseUser = () => {
+  const [user, setUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+    // Fetch user on mount
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (!error) setUser(data?.user || null);
+      setLoadingUser(false);
+    });
+
+    // Subscribe to auth changes
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.subscription.unsubscribe();
+  }, []);
+
+  return { user, loadingUser };
+};
+
+// --- Journals Hook ---
+export const useSupabaseJournals = () => {
+  const [journals, setJournals] = useState([]);
+  const [loadingJournals, setLoading] = useState(true);
+  const [isReady, setReady] = useState(false);
+  const [user, setUser] = useState(null);
+
+  // --- Detect existing session (after your login runs) ---
+  useEffect(() => {
+    const init = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.user) setUser(data.session.user);
+      setReady(true);
+    };
+    init();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // --- Load user’s journals from Supabase ---
+  const loadJournals = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data, error } = await supabase
+        .from('dbJournals')
+        .select('user_id, title, body, time_stamp')
+        .eq('user_id', user.id)
+        .order('time_stamp', { ascending: false });
+    if (error) console.error('Error loading journals:', error);
+    else setJournals(data || []);
+    setLoading(false);
+  }, [user]);
+
+  // Automatically load when logged in
+  useEffect(() => {
+    if (user) loadJournals();
+  }, [user, loadJournals]);
+
+  // --- Add a new journal entry ---
+  const addJournal = useCallback(
+      async (title, body) => {
+        if (!user) return false;
+        const now = new Date().toLocaleString('en-US', {timeZone: "America/Chicago"});
+        const { error } = await supabase.from('dbJournals').insert({
+          user_id: user.id,
+          title,
+          body,
+          time_stamp: now,
+        });
+        if (error) {
+          console.error('Error adding journal:', error);
+          return false;
+        }
+        await loadJournals();
+        return true;
+      },
+      [user, loadJournals]
+  );
+
+  // --- Update an existing journal ---
+  const updateJournal = useCallback(
+      async (id, title, body) => {
+        if (!user) return false;
+        const now = new Date().toISOString();
+        const { error } = await supabase
+            .from('dbJournals')
+            .update({ title, body, time_stamp: now })
+            .eq('id', id)
+            .eq('user_id', user.id);
+        if (error) {
+          console.error('Error updating journal:', error);
+          return false;
+        }
+        await loadJournals();
+        return true;
+      },
+      [user, loadJournals]
+  );
+
+  // --- Delete a journal ---
+  const deleteJournal = useCallback(
+      async (id) => {
+        if (!user) return false;
+        const { error } = await supabase
+            .from('dbJournals')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id);
+        if (error) {
+          console.error('Error deleting journal:', error);
+          return false;
+        }
+        await loadJournals();
+        return true;
+      },
+      [user, loadJournals]
+  );
+
+  // --- Realtime sync for updates from other clients ---
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+        .channel('journals_changes')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'dbjournals', filter: `user_id=eq.${user.id}` },
+            () => loadJournals()
+        )
+        .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, loadJournals]);
+
+  return {
+    isReady,
+    user,
+    journals,
+    loadingJournals,
+    addJournal,
+    updateJournal,
+    deleteJournal,
+    refresh: loadJournals,
+  };
+};
+
+// --- Screens ---
+const LoginPage = ({ setIsLoggedIn, bgColor, textColor, isDark, goToRegister }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    // simple front-end validation
+    if (!email.trim() || !password.trim())  {
+      setError('Please enter both email and password.');      
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await signIn(email.trim(), password.trim());
+      setIsLoggedIn(true); // only after a real sign-in succeeds
+    } catch (err) {
+      setError(err.message || 'Login failed. Please try again.');
+      setIsLoading(false);
+   }
+  };
+
+  return (
+    <div className={`flex flex-col items-center justify-center h-full p-8 ${bgColor} transition-colors duration-300`}>
+      <div className="w-full">
+        {/* App title / logo placeholder */}
+        <div className="text-center mb-6">
+          <div className={`mx-auto w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-indigo-600/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>
+            <BookOpenIcon className="w-7 h-7" />
+          </div>
+          <h1 className={`mt-3 text-2xl font-extrabold ${textColor}`}>Mental Health Journal</h1>
+          <p className={`text-sm opacity-70 ${textColor}`}>Welcome back</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className={`block text-sm font-medium mb-1 ${textColor}`}>Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition ${isDark ? 'bg-gray-700 placeholder-gray-400 border-gray-600 text-gray-100' : 'bg-gray-100 placeholder-gray-500 border-gray-300 text-gray-900'}`}
+              placeholder="you@example.com"
+              aria-invalid={!!error && !email.trim()}
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className={`block text-sm font-medium mb-1 ${textColor}`}>Password</label>
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                className="text-xs font-semibold text-indigo-500 hover:text-indigo-400"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition ${isDark ? 'bg-gray-700 placeholder-gray-400 border-gray-600 text-gray-100' : 'bg-gray-100 placeholder-gray-500 border-gray-300 text-gray-900'}`}
+              placeholder="••••••••"
+              aria-invalid={!!error && !password.trim()}
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 rounded-lg text-sm font-medium bg-red-600/90 text-white">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="w-full py-3 px-6 bg-indigo-600 text-white font-semibold rounded-full shadow-lg hover:bg-indigo-700 transition disabled:opacity-50 flex items-center justify-center"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                Signing in…
+              </>
+            ) : (
+              'Login'
+            )}
+          </button>
+        </form>
+
+           <p className={`text-xs mt-6 text-center ${textColor} opacity-60`}>
+          Don't have an account?{' '}
+          <button onClick={goToRegister} className="text-indigo-400 hover:text-indigo-300 font-semibold">Create one</button>
+        </p>    
+      </div>
+=======
 // --- Local Store (no backend) ---
 const KEY = 'journal_store_v1';
 const loadJournals = () => {
@@ -147,10 +440,146 @@ const LoginPage = ({ login, setIsLoggedIn, bgColor, textColor, isDark }) => {
         {isLoading ? (<><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div><span>Connecting...</span></>) : (<span>Start Journaling</span>)}
       </button>
       <p className={`text-xs mt-8 ${textColor} opacity-50`}>For now, your entries are saved locally in this browser.</p>
+>>>>>>> Mental-Health-Journal/src/App.jsx
     </div>
   );
 };
 
+<<<<<<< Mental-Health-Journal/src/App.jsx
+const RegisterPage = ({ setIsLoggedIn, bgColor, textColor, isDark, goToLogin }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [sent, setSent] = useState(false); // NEW
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!email.trim() || !password.trim() || !confirm.trim()) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    if (password !== confirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const { data, error } = await signUp(email.trim(), password.trim());
+      if (error) throw error;
+      setSent(true); 
+    } catch (err) {
+      setError(err.message || 'Sign up failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <div className={`flex flex-col items-center justify-center h-full p-8 ${bgColor} transition-colors duration-300`}>
+        <div className="w-full text-center">
+          <div className={`mx-auto w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-indigo-600/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>
+            <BookOpenIcon className="w-7 h-7" />
+          </div>
+          <h1 className={`mt-3 text-2xl font-extrabold ${textColor}`}>Check your email</h1>
+          <p className={`mt-2 text-sm ${textColor} opacity-80`}>
+            We sent a verification link to <span className="font-semibold">{email}</span>.<br/>
+            Click the link to activate your account, then log in.
+          </p>
+          <button
+            onClick={goToLogin}
+            className="mt-6 w-full py-3 px-6 bg-indigo-600 text-white font-semibold rounded-full shadow-lg hover:bg-indigo-700 transition"
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex flex-col items-center justify-center h-full p-8 ${bgColor} transition-colors duration-300`}>
+      <div className="w-full">
+        <div className="text-center mb-6">
+          <div className={`mx-auto w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-indigo-600/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>
+            <BookOpenIcon className="w-7 h-7" />
+          </div>
+          <h1 className={`mt-3 text-2xl font-extrabold ${textColor}`}>Create Account</h1>
+          <p className={`text-sm opacity-70 ${textColor}`}>Start journaling securely</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="reg-email" className={`block text-sm font-medium mb-1 ${textColor}`}>Email</label>
+            <input
+              id="reg-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition ${isDark ? 'bg-gray-700 placeholder-gray-400 border-gray-600 text-gray-100' : 'bg-gray-100 placeholder-gray-500 border-gray-300 text-gray-900'}`}
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <label htmlFor="reg-password" className={`block text-sm font-medium mb-1 ${textColor}`}>Password</label>
+              <button type="button" onClick={() => setShowPassword(s => !s)} className="text-xs font-semibold text-indigo-500 hover:text-indigo-400">
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            <input
+              id="reg-password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition ${isDark ? 'bg-gray-700 placeholder-gray-400 border-gray-600 text-gray-100' : 'bg-gray-100 placeholder-gray-500 border-gray-300 text-gray-900'}`}
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="reg-confirm" className={`block text-sm font-medium mb-1 ${textColor}`}>Confirm Password</label>
+            <input
+              id="reg-confirm"
+              type={showPassword ? 'text' : 'password'}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition ${isDark ? 'bg-gray-700 placeholder-gray-400 border-gray-600 text-gray-100' : 'bg-gray-100 placeholder-gray-500 border-gray-300 text-gray-900'}`}
+              placeholder="••••••••"
+            />
+          </div>
+
+          {error && <div className="p-3 rounded-lg text-sm font-medium bg-red-600/90 text-white">{error}</div>}
+
+          <button
+            type="submit"
+            className="w-full py-3 px-6 bg-indigo-600 text-white font-semibold rounded-full shadow-lg hover:bg-indigo-700 transition disabled:opacity-50 flex items-center justify-center"
+            disabled={isLoading}
+          >
+            {isLoading ? (<><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>Creating…</>) : 'Create Account'}
+          </button>
+        </form>
+
+        <p className={`text-xs mt-6 text-center ${textColor} opacity-60`}>
+          Already have an account?{' '}
+          <button onClick={goToLogin} className="text-indigo-400 hover:text-indigo-300 font-semibold">Log in</button>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+
+
+=======
+>>>>>>> Mental-Health-Journal/src/App.jsx
 const ViewJournalPage = ({ journal, setPage, textColor, cardColor, deleteJournal }) => {
   if (!journal) return <div className="p-4"><p className={`${textColor}`}>Error: No entry selected.</p></div>;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -185,16 +614,27 @@ const ViewJournalPage = ({ journal, setPage, textColor, cardColor, deleteJournal
       </div>
       <h1 className={`text-3xl font-bold mb-2 ${textColor}`}>{journal.title || 'Untitled Entry'}</h1>
       <p className={`text-sm text-gray-400 mb-6`}>
+<<<<<<< Mental-Health-Journal/src/App.jsx
+        Created: {formatDate(journal.time_stamp)}{journal.updatedAt && (<span className="ml-3 italic">(Updated: {formatDate(journal.updatedAt)})</span>)}
+      </p>
+      <div className={`${cardColor} p-4 rounded-xl shadow-inner min-h-[60%] mb-40`}>
+        <p className={`text-base ${textColor} opacity-90 whitespace-pre-wrap`}>{journal.body}</p>
+=======
         Created: {formatDate(journal.createdAt)}{journal.updatedAt && (<span className="ml-3 italic">(Updated: {formatDate(journal.updatedAt)})</span>)}
       </p>
       <div className={`${cardColor} p-4 rounded-xl shadow-inner min-h-[60%] mb-40`}>
         <p className={`text-base ${textColor} opacity-90 whitespace-pre-wrap`}>{journal.content}</p>
+>>>>>>> Mental-Health-Journal/src/App.jsx
       </div>
     </div>
   );
 };
 
 const JournalFormPage = ({ journalToEdit, addJournal, updateJournal, textColor, inputColor, setPage }) => {
+<<<<<<< Mental-Health-Journal/src/App.jsx
+
+=======
+>>>>>>> Mental-Health-Journal/src/App.jsx
   const isEditMode = !!journalToEdit;
   const [title, setTitle] = useState(isEditMode ? (journalToEdit.title || '') : '');
   const [content, setContent] = useState(isEditMode ? (journalToEdit.content || '') : '');
@@ -248,7 +688,11 @@ const HomePage = ({ journals, loadingJournals, cardColor, textColor, setSelected
           <div key={journal.id} className={`${cardColor} p-4 rounded-xl shadow-lg transition duration-200 hover:shadow-2xl cursor-pointer`}
             onClick={() => { setSelectedJournal(journal); setPage('View'); }}>
             <h2 className={`text-xl font-semibold mb-1 ${textColor}`}>{journal.title || 'Untitled Entry'}</h2>
+<<<<<<< Mental-Health-Journal/src/App.jsx
+            <p className={`text-sm text-gray-400 mb-2`}>{formatDate(journal.time_stamp)}</p>
+=======
             <p className={`text-sm text-gray-400 mb-2`}>{formatDate(journal.createdAt)}</p>
+>>>>>>> Mental-Health-Journal/src/App.jsx
             <p className={`text-base ${textColor} line-clamp-3 opacity-90`}>{journal.content}</p>
           </div>
         ))}
@@ -302,11 +746,19 @@ const NavBar = ({ currentPage, setPage, navColor }) => {
 };
 
 export default function App() {
+<<<<<<< Mental-Health-Journal/src/App.jsx
+  const { isReady, userId, journals, loadingJournals, addJournal, updateJournal, deleteJournal, login } = useSupabaseJournals();
+=======
   const { isReady, userId, journals, loadingJournals, addJournal, updateJournal, deleteJournal, login } = useLocalJournals();
+>>>>>>> Mental-Health-Journal/src/App.jsx
   const { isDark, toggleTheme, bgColor, textColor, cardColor, navColor, inputColor } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentPage, setCurrentPage] = useState('Home');
   const [selectedJournal, setSelectedJournal] = useState(null);
+<<<<<<< Mental-Health-Journal/src/App.jsx
+  const [authPage, setAuthPage] = useState('login');
+=======
+>>>>>>> Mental-Health-Journal/src/App.jsx
 
   if (!isReady) {
     return (
@@ -323,7 +775,27 @@ export default function App() {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 ${isDark ? 'bg-gray-950' : 'bg-gray-100'}`}>
         <div className={`relative w-full max-w-sm h-[800px] border-8 rounded-[48px] overflow-hidden shadow-2xl transition-colors duration-300 ${isDark ? 'border-gray-800 bg-black' : 'border-gray-300 bg-white'}`}>
+<<<<<<< Mental-Health-Journal/src/App.jsx
+          {authPage === 'login' ? (
+            <LoginPage
+              setIsLoggedIn={setIsLoggedIn}
+              bgColor={bgColor}
+              textColor={textColor}
+              isDark={isDark}
+              goToRegister={() => setAuthPage('register')}
+            />
+          ) : (
+            <RegisterPage
+              setIsLoggedIn={setIsLoggedIn}
+              bgColor={bgColor}
+              textColor={textColor}
+              isDark={isDark}
+              goToLogin={() => setAuthPage('login')}
+            />
+          )}
+=======
           <LoginPage login={login} setIsLoggedIn={setIsLoggedIn} bgColor={bgColor} textColor={textColor} isDark={isDark} />
+>>>>>>> Mental-Health-Journal/src/App.jsx
         </div>
       </div>
     );
