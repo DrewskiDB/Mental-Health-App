@@ -45,7 +45,6 @@ const TrashIcon = (props) => (
   </svg>
 );
 
-<<<<<<< Mental-Health-Journal/src/App.jsx
 // Authication / database
 
  const supabase = createClient(
@@ -66,8 +65,6 @@ const signUp = async (email, password) => {
   return data;
 };
 
-=======
->>>>>>> Mental-Health-Journal/src/App.jsx
 // Helpers
 const formatDate = (ts) => {
   try {
@@ -75,11 +72,7 @@ const formatDate = (ts) => {
     if (isNaN(date.getTime())) return 'Invalid Date';
     return date.toLocaleDateString('en-US', {
       year: 'numeric', month: 'short', day: 'numeric',
-<<<<<<< Mental-Health-Journal/src/App.jsx
       hour: '2-digit', minute: '2-digit', timeZone: 'America/Chicago'
-=======
-      hour: '2-digit', minute: '2-digit'
->>>>>>> Mental-Health-Journal/src/App.jsx
     });
   } catch { return 'Invalid Date'; }
 };
@@ -98,7 +91,6 @@ const useTheme = () => {
   return { theme, isDark, toggleTheme, bgColor, textColor, cardColor, navColor, inputColor };
 };
 
-<<<<<<< Mental-Health-Journal/src/App.jsx
 // --- 3. Hook to manage user authentication state ---
 const useSupabaseUser = () => {
   const [user, setUser] = useState(null);
@@ -361,91 +353,10 @@ const LoginPage = ({ setIsLoggedIn, bgColor, textColor, isDark, goToRegister }) 
           <button onClick={goToRegister} className="text-indigo-400 hover:text-indigo-300 font-semibold">Create one</button>
         </p>    
       </div>
-=======
-// --- Local Store (no backend) ---
-const KEY = 'journal_store_v1';
-const loadJournals = () => {
-  try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
-};
-const saveJournals = (arr) => {
-  localStorage.setItem(KEY, JSON.stringify(arr));
-};
-
-const useLocalJournals = () => {
-  const [journals, setJournals] = useState([]);
-  const [loadingJournals, setLoading] = useState(true);
-  const [isReady, setReady] = useState(true);
-  const [userId, setUserId] = useState(() => {
-    const k = 'journal_user_id';
-    let u = localStorage.getItem(k);
-    if (!u) { u = (crypto?.randomUUID?.() || String(Math.random())).slice(0, 12); localStorage.setItem(k, u); }
-    return u;
-  });
-
-  useEffect(() => {
-    const data = loadJournals();
-    data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-    setJournals(data);
-    setLoading(false);
-
-    const onStorage = (e) => {
-      if (e.key === KEY) {
-        const d = loadJournals();
-        d.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setJournals(d);
-      }
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
-
-  const login = useCallback(async () => true, []);
-
-  const addJournal = useCallback(async (title, content) => {
-    const now = new Date().toISOString();
-    const id = (crypto?.randomUUID?.() || Math.random().toString(36).slice(2));
-    const next = [{ id, title, content, createdAt: now }, ...journals];
-    setJournals(next); saveJournals(next);
-    return true;
-  }, [journals]);
-
-  const updateJournal = useCallback(async (id, title, content) => {
-    const now = new Date().toISOString();
-    const next = journals.map(j => j.id === id ? { ...j, title, content, updatedAt: now } : j);
-    setJournals(next); saveJournals(next);
-    return true;
-  }, [journals]);
-
-  const deleteJournal = useCallback(async (id) => {
-    const next = journals.filter(j => j.id != id);
-    setJournals(next); saveJournals(next);
-    return true;
-  }, [journals]);
-
-  return { isReady, userId, journals, loadingJournals, addJournal, updateJournal, deleteJournal, login };
-};
-
-// --- Screens ---
-const LoginPage = ({ login, setIsLoggedIn, bgColor, textColor, isDark }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const handleLogin = async () => { setIsLoading(true); setError(null); const ok = await login(); ok ? setIsLoggedIn(true) : (setError('Login failed'), setIsLoading(false)); };
-  return (
-    <div className={`flex flex-col items-center justify-center h-full p-8 ${bgColor} transition-colors duration-300`}>
-      <BookOpenIcon className={`w-20 h-20 mb-4 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} />
-      <h1 className={`text-4xl font-extrabold text-center mb-2 ${textColor}`}>Mental Health</h1>
-      <h2 className={`text-xl font-light text-center mb-10 ${textColor} opacity-80`}>Journal</h2>
-      {error && <div className="p-3 bg-red-800 text-white text-sm rounded-lg mb-4 w-full text-center">{error}</div>}
-      <button onClick={handleLogin} className="w-full py-4 px-6 bg-indigo-600 text-white font-semibold text-lg rounded-full shadow-lg shadow-indigo-500/50 hover:bg-indigo-700 transition duration-300 disabled:opacity-50 flex items-center justify-center space-x-2" disabled={isLoading}>
-        {isLoading ? (<><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div><span>Connecting...</span></>) : (<span>Start Journaling</span>)}
-      </button>
-      <p className={`text-xs mt-8 ${textColor} opacity-50`}>For now, your entries are saved locally in this browser.</p>
->>>>>>> Mental-Health-Journal/src/App.jsx
     </div>
   );
 };
 
-<<<<<<< Mental-Health-Journal/src/App.jsx
 const RegisterPage = ({ setIsLoggedIn, bgColor, textColor, isDark, goToLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -578,8 +489,6 @@ const RegisterPage = ({ setIsLoggedIn, bgColor, textColor, isDark, goToLogin }) 
 
 
 
-=======
->>>>>>> Mental-Health-Journal/src/App.jsx
 const ViewJournalPage = ({ journal, setPage, textColor, cardColor, deleteJournal }) => {
   if (!journal) return <div className="p-4"><p className={`${textColor}`}>Error: No entry selected.</p></div>;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -614,27 +523,16 @@ const ViewJournalPage = ({ journal, setPage, textColor, cardColor, deleteJournal
       </div>
       <h1 className={`text-3xl font-bold mb-2 ${textColor}`}>{journal.title || 'Untitled Entry'}</h1>
       <p className={`text-sm text-gray-400 mb-6`}>
-<<<<<<< Mental-Health-Journal/src/App.jsx
         Created: {formatDate(journal.time_stamp)}{journal.updatedAt && (<span className="ml-3 italic">(Updated: {formatDate(journal.updatedAt)})</span>)}
       </p>
       <div className={`${cardColor} p-4 rounded-xl shadow-inner min-h-[60%] mb-40`}>
         <p className={`text-base ${textColor} opacity-90 whitespace-pre-wrap`}>{journal.body}</p>
-=======
-        Created: {formatDate(journal.createdAt)}{journal.updatedAt && (<span className="ml-3 italic">(Updated: {formatDate(journal.updatedAt)})</span>)}
-      </p>
-      <div className={`${cardColor} p-4 rounded-xl shadow-inner min-h-[60%] mb-40`}>
-        <p className={`text-base ${textColor} opacity-90 whitespace-pre-wrap`}>{journal.content}</p>
->>>>>>> Mental-Health-Journal/src/App.jsx
       </div>
     </div>
   );
 };
 
 const JournalFormPage = ({ journalToEdit, addJournal, updateJournal, textColor, inputColor, setPage }) => {
-<<<<<<< Mental-Health-Journal/src/App.jsx
-
-=======
->>>>>>> Mental-Health-Journal/src/App.jsx
   const isEditMode = !!journalToEdit;
   const [title, setTitle] = useState(isEditMode ? (journalToEdit.title || '') : '');
   const [content, setContent] = useState(isEditMode ? (journalToEdit.content || '') : '');
@@ -688,11 +586,7 @@ const HomePage = ({ journals, loadingJournals, cardColor, textColor, setSelected
           <div key={journal.id} className={`${cardColor} p-4 rounded-xl shadow-lg transition duration-200 hover:shadow-2xl cursor-pointer`}
             onClick={() => { setSelectedJournal(journal); setPage('View'); }}>
             <h2 className={`text-xl font-semibold mb-1 ${textColor}`}>{journal.title || 'Untitled Entry'}</h2>
-<<<<<<< Mental-Health-Journal/src/App.jsx
             <p className={`text-sm text-gray-400 mb-2`}>{formatDate(journal.time_stamp)}</p>
-=======
-            <p className={`text-sm text-gray-400 mb-2`}>{formatDate(journal.createdAt)}</p>
->>>>>>> Mental-Health-Journal/src/App.jsx
             <p className={`text-base ${textColor} line-clamp-3 opacity-90`}>{journal.content}</p>
           </div>
         ))}
@@ -746,19 +640,12 @@ const NavBar = ({ currentPage, setPage, navColor }) => {
 };
 
 export default function App() {
-<<<<<<< Mental-Health-Journal/src/App.jsx
   const { isReady, userId, journals, loadingJournals, addJournal, updateJournal, deleteJournal, login } = useSupabaseJournals();
-=======
-  const { isReady, userId, journals, loadingJournals, addJournal, updateJournal, deleteJournal, login } = useLocalJournals();
->>>>>>> Mental-Health-Journal/src/App.jsx
   const { isDark, toggleTheme, bgColor, textColor, cardColor, navColor, inputColor } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentPage, setCurrentPage] = useState('Home');
   const [selectedJournal, setSelectedJournal] = useState(null);
-<<<<<<< Mental-Health-Journal/src/App.jsx
   const [authPage, setAuthPage] = useState('login');
-=======
->>>>>>> Mental-Health-Journal/src/App.jsx
 
   if (!isReady) {
     return (
@@ -775,7 +662,6 @@ export default function App() {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 ${isDark ? 'bg-gray-950' : 'bg-gray-100'}`}>
         <div className={`relative w-full max-w-sm h-[800px] border-8 rounded-[48px] overflow-hidden shadow-2xl transition-colors duration-300 ${isDark ? 'border-gray-800 bg-black' : 'border-gray-300 bg-white'}`}>
-<<<<<<< Mental-Health-Journal/src/App.jsx
           {authPage === 'login' ? (
             <LoginPage
               setIsLoggedIn={setIsLoggedIn}
@@ -793,9 +679,6 @@ export default function App() {
               goToLogin={() => setAuthPage('login')}
             />
           )}
-=======
-          <LoginPage login={login} setIsLoggedIn={setIsLoggedIn} bgColor={bgColor} textColor={textColor} isDark={isDark} />
->>>>>>> Mental-Health-Journal/src/App.jsx
         </div>
       </div>
     );
