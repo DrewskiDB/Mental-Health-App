@@ -114,6 +114,7 @@ const useSupabaseUser = () => {
   return { user, loadingUser };
 };
 
+
 // --- Journals Hook ---
 export const useSupabaseJournals = () => {
   const [journals, setJournals] = useState([]);
@@ -245,6 +246,47 @@ export const useSupabaseJournals = () => {
     deleteJournal,
     refresh: loadJournals,
   };
+};
+
+const useDailyAffirmation = () => {
+  const [affirmation, setAffirmation] = useState(null);
+  const [loadingAffirmation, setLoadingAffirmation] = useState(true);
+
+  useEffect(() => {
+    const loadAffirmation = async () => {
+      setLoadingAffirmation(true);
+
+      const { data, error } = await supabase
+        .from('affirmations')
+        .select('id, text');
+
+      if (error) {
+        console.error('Error loading affirmations:', error);
+        setLoadingAffirmation(false);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setLoadingAffirmation(false);
+        return;
+      }
+
+      // Pick a "random" but stable affirmation for today
+      const today = new Date().toLocaleDateString('en-CA',{timeZone: 'America/Chicago',})
+      let hash = 0;
+      for (let i = 0; i < today.length; i++) {
+        hash = (hash * 31 + today.charCodeAt(i)) >>> 0;
+      }
+      const index = hash % data.length;
+
+      setAffirmation(data[index]);
+      setLoadingAffirmation(false);
+    };
+
+    loadAffirmation();
+  }, []);
+
+  return { affirmation, loadingAffirmation };
 };
 
 // --- Screens ---
@@ -571,11 +613,30 @@ const JournalFormPage = ({ journalToEdit, addJournal, updateJournal, textColor, 
   );
 };
 
-const HomePage = ({ journals, loadingJournals, cardColor, textColor, setSelectedJournal, setPage }) => {
+const HomePage = ({ journals, loadingJournals, cardColor, textColor, setSelectedJournal, setPage, affirmation, loadingAffirmation }) => {
   return (
     <div className="p-4 space-y-4 overflow-y-auto">
       <h1 className={`text-3xl font-bold ${textColor}`}>My Journal Entries</h1>
       {loadingJournals && <p className="text-center text-lg italic text-gray-500">Loading entries...</p>}
+
+      <div className={`${cardColor} p-4 rounded-xl shadow-md`}>
+        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400 mb-1">
+          Daily affirmation
+        </p>
+
+        {loadingAffirmation ? (
+          <p className={`text-sm ${textColor} opacity-70`}>Loading...</p>
+        ) : affirmation ? (
+          <p className={`text-base ${textColor} italic`}>
+            “{affirmation.text}”
+          </p>
+        ) : (
+          <p className={`text-sm ${textColor} opacity-70`}>
+            No affirmations available yet.
+          </p>
+        )}
+      </div>
+
       {!loadingJournals && journals.length === 0 && (
         <div className="text-center p-8 mt-10 rounded-xl border border-dashed border-gray-500">
           <p className={`text-lg ${textColor} opacity-70`}>You haven't written anything yet. Click the pen icon to start journaling!</p>
@@ -646,6 +707,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('Home');
   const [selectedJournal, setSelectedJournal] = useState(null);
   const [authPage, setAuthPage] = useState('login');
+  const {affirmation, loadingAffrimation} = useDailyAffirmation();
 
   if (!isReady) {
     return (
@@ -689,7 +751,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'Home':
-        return <HomePage journals={journals} loadingJournals={loadingJournals} cardColor={cardColor} textColor={textColor} setSelectedJournal={setSelectedJournal} setPage={setCurrentPage} />;
+        return <HomePage journals={journals} loadingJournals={loadingJournals} cardColor={cardColor} textColor={textColor} setSelectedJournal={setSelectedJournal} setPage={setCurrentPage} affirmation={affirmation} loadingAffrimation= {loadingAffrimation} />;
       case 'Write':
         return <JournalFormPage {...formProps} journalToEdit={null} />;
       case 'Edit':
