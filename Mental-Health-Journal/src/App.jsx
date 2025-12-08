@@ -495,7 +495,7 @@ const ViewJournalPage = ({ journal, setPage, textColor, cardColor, deleteJournal
   const [isDeleting, setIsDeleting] = useState(false);
   const handleDelete = async () => { setIsDeleting(true); const ok = await deleteJournal(journal.id); setIsDeleting(false); ok ? setPage('Home') : setShowDeleteConfirm(false); };
   return (
-    <div className="p-4 overflow-y-auto h-full">
+    <div className="p-4 overflow-y-auto h-full no-scrollbar">
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className={`p-6 rounded-2xl shadow-2xl w-full max-w-xs ${cardColor} transition-colors duration-300`}>
@@ -555,7 +555,7 @@ const JournalFormPage = ({ journalToEdit, addJournal, updateJournal, textColor, 
     } else setMessage({ type: 'error', text: 'Failed to save entry.' });
   };
   return (
-    <div className="p-4 overflow-y-auto h-full">
+    <div className="p-4 overflow-y-auto h-full no-scrollbar">
       <h1 className={`text-3xl font-bold mb-6 ${textColor}`}>{pageTitle}</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (Optional)"
@@ -564,7 +564,7 @@ const JournalFormPage = ({ journalToEdit, addJournal, updateJournal, textColor, 
           className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 resize-none ${inputColor} ${textColor}`} disabled={isSaving}></textarea>
         {message && (<p className={`text-sm font-medium ${message.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>{message.text}</p>)}
         <button type="submit" className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-200 disabled:opacity-50" disabled={isSaving}>
-          {isSaving ? 'Saving...' : (isEditMode ? 'Update Entry' : 'Save Entry')}
+          {isSaving ? 'Saving....' : (isEditMode ? 'Update Entry' : 'Save Entry')}
         </button>
       </form>
     </div>
