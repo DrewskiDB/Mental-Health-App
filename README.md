@@ -90,7 +90,7 @@ All application state is managed In our Database via the **Supabase** API.
 To manually clear all stored journal entries during development:
 
 1. Open your browser’s **DevTools**  
-2. Navigate to **Application** → **Local Storage**  
+2. Navigate to **Application** → **Supabase**  
 3. Remove keys beginning with `journal_` (e.g., `journal_store_v1`)
 
 ---
