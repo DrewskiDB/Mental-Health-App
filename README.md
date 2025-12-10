@@ -66,7 +66,7 @@ mental-journal-react-vite-nofirebase/
 
 ## Data Model and Storage
 
-All application state is managed locally in the browser via the **localStorage** API.
+All application state is managed In our Database via the **Supabase** API.
 
 **Storage Keys**
 - Entries are stored under: `journal_store_v1`
@@ -79,9 +79,9 @@ All application state is managed locally in the browser via the **localStorage**
 - `updatedAt` *(string, optional)* — ISO timestamp updated upon edit  
 
 **Data Flow and Features**
-- **Retrieval:** Data is loaded from `localStorage` on component mount and parsed from JSON  
+- **Retrieval:** Data is loaded from `Supabase` on component mount and parsed from JSON  
 - **Sorting:** Entries are sorted newest-first based on the `createdAt` timestamp  
-- **Synchronization:** A `storage` event listener keeps multiple tabs/windows in sync  
+- **Synchronization:** A `Supabase Storage` event listener keeps multiple tabs/windows in sync  
 
 ---
 
