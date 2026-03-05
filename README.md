@@ -66,7 +66,11 @@ mental-journal-react-vite-nofirebase/
 
 ## Data Model and Storage
 
+<<<<<<< HEAD
 All application state is managed locally in the browser via the **localStorage** API.
+=======
+All application state is managed In our Database via the **Supabase** API.
+>>>>>>> 08d92c51c6a81882c8b720f0cbc68ac0eaa3dfd8
 
 **Storage Keys**
 - Entries are stored under: `journal_store_v1`
@@ -79,9 +83,15 @@ All application state is managed locally in the browser via the **localStorage**
 - `updatedAt` *(string, optional)* — ISO timestamp updated upon edit  
 
 **Data Flow and Features**
+<<<<<<< HEAD
 - **Retrieval:** Data is loaded from `localStorage` on component mount and parsed from JSON  
 - **Sorting:** Entries are sorted newest-first based on the `createdAt` timestamp  
 - **Synchronization:** A `storage` event listener keeps multiple tabs/windows in sync  
+=======
+- **Retrieval:** Data is loaded from `Supabase` on component mount and parsed from JSON  
+- **Sorting:** Entries are sorted newest-first based on the `createdAt` timestamp  
+- **Synchronization:** A `Supabase Storage` event listener keeps multiple tabs/windows in sync  
+>>>>>>> 08d92c51c6a81882c8b720f0cbc68ac0eaa3dfd8
 
 ---
 
@@ -90,7 +100,11 @@ All application state is managed locally in the browser via the **localStorage**
 To manually clear all stored journal entries during development:
 
 1. Open your browser’s **DevTools**  
+<<<<<<< HEAD
 2. Navigate to **Application** → **Local Storage**  
+=======
+2. Navigate to **Application** → **Supabase**  
+>>>>>>> 08d92c51c6a81882c8b720f0cbc68ac0eaa3dfd8
 3. Remove keys beginning with `journal_` (e.g., `journal_store_v1`)
 
 ---
