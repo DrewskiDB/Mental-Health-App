@@ -47,19 +47,23 @@ const TrashIcon = (props) => (
 
 // Authication / database
 
- const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
-)
+const supabase = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
+  ? createClient(
+      import.meta.env.VITE_SUPABASE_URL,
+      import.meta.env.VITE_SUPABASE_ANON_KEY,
+    )
+  : null;
 
 // Auth helpers (email)
 const signIn = async(email,password) =>  {
+  if (!supabase) throw new Error('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
   const {data, error} = await supabase.auth.signInWithPassword({email,password});
   if(error) throw error;
   return data;
 };
 
 const signUp = async (email, password) => {
+  if (!supabase) throw new Error('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
   const {data, error} = await supabase.auth.signUp({email,password});
   if (error) throw error;
   return data;
@@ -97,6 +101,10 @@ const useSupabaseUser = () => {
   const [loadingUser, setLoadingUser] = useState(true);
 
   useEffect(() => {
+    if (!supabase) {
+      setLoadingUser(false);
+      return;
+    }
     // Fetch user on mount
     supabase.auth.getUser().then(({ data, error }) => {
       if (!error) setUser(data?.user || null);
@@ -125,12 +133,17 @@ export const useSupabaseJournals = () => {
   // --- Detect existing session (after your login runs) ---
   useEffect(() => {
     const init = async () => {
+      if (!supabase) {
+        setReady(true);
+        return;
+      }
       const { data } = await supabase.auth.getSession();
       if (data.session?.user) setUser(data.session.user);
       setReady(true);
     };
     init();
 
+    if (!supabase) return;
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -142,7 +155,7 @@ export const useSupabaseJournals = () => {
 
   // --- Load user’s journals from Supabase ---
   const loadJournals = useCallback(async () => {
-    if (!user) return;
+    if (!user || !supabase) return;
     setLoading(true);
     const { data, error } = await supabase
         .from('dbJournals')
@@ -162,7 +175,7 @@ export const useSupabaseJournals = () => {
   // --- Add a new journal entry ---
   const addJournal = useCallback(
       async (title, body) => {
-        if (!user) return false;
+        if (!user || !supabase) return false;
         const now = new Date().toLocaleString('en-US', {timeZone: "America/Chicago"});
         const { error } = await supabase.from('dbJournals').insert({
           user_id: user.id,
@@ -183,7 +196,7 @@ export const useSupabaseJournals = () => {
   // --- Update an existing journal ---
   const updateJournal = useCallback(
       async (id, title, body) => {
-        if (!user) return false;
+        if (!user || !supabase) return false;
         const now = new Date().toISOString();
         const { error } = await supabase
             .from('dbJournals')
@@ -203,7 +216,7 @@ export const useSupabaseJournals = () => {
   // --- Delete a journal ---
   const deleteJournal = useCallback(
       async (id) => {
-        if (!user) return false;
+        if (!user || !supabase) return false;
         const { error } = await supabase
             .from('dbJournals')
             .delete()
@@ -221,7 +234,7 @@ export const useSupabaseJournals = () => {
 
   // --- Realtime sync for updates from other clients ---
   useEffect(() => {
-    if (!user) return;
+    if (!user || !supabase) return;
     const channel = supabase
         .channel('journals_changes')
         .on(
@@ -255,6 +268,11 @@ const useDailyAffirmation = () => {
   useEffect(() => {
     const loadAffirmation = async () => {
       setLoadingAffirmation(true);
+
+      if (!supabase) {
+        setLoadingAffirmation(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('affirmations')
@@ -707,7 +725,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('Home');
   const [selectedJournal, setSelectedJournal] = useState(null);
   const [authPage, setAuthPage] = useState('login');
-  const {affirmation, loadingAffrimation} = useDailyAffirmation();
+  const {affirmation, loadingAffirmation} = useDailyAffirmation();
 
   if (!isReady) {
     return (
@@ -751,7 +769,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'Home':
-        return <HomePage journals={journals} loadingJournals={loadingJournals} cardColor={cardColor} textColor={textColor} setSelectedJournal={setSelectedJournal} setPage={setCurrentPage} affirmation={affirmation} loadingAffrimation= {loadingAffrimation} />;
+        return <HomePage journals={journals} loadingJournals={loadingJournals} cardColor={cardColor} textColor={textColor} setSelectedJournal={setSelectedJournal} setPage={setCurrentPage} affirmation={affirmation} loadingAffirmation={loadingAffirmation} />;
       case 'Write':
         return <JournalFormPage {...formProps} journalToEdit={null} />;
       case 'Edit':
